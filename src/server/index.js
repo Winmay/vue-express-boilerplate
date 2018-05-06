@@ -1,43 +1,96 @@
-import express from 'express'
-import path from 'path'
-import favicon from 'serve-favicon'
-import logger from 'morgan'
-import bodyParser from 'body-parser'
-import webpack from 'webpack'
+require('../../build/check-versions')()
 
-// 引入history模块
-import history from 'connect-history-api-fallback'
+var router = require('./router/router')
+var fs = require('fs')
+var bodyParser = require('body-parser')
+var logger = require('morgan')
+var config = require('../../config')
+if (!process.env.NODE_ENV) process.env.NODE_ENV = JSON.parse(config.dev.env.NODE_ENV)
 
-// 正式环境时，下面两个模块不需要引入
-import webpackDevMiddleware from 'webpack-dev-middleware'
-import webpackHotMiddleware from 'webpack-hot-middleware'
+var path = require('path')
+var express = require('express')
+// var favicon = require('serve-favicon')
+var webpack = require('webpack')
 
-import config from '../../build/webpack.dev.conf'
+var webpackConfig = require('../../build/webpack.dev.conf')
+
+// default port where dev server listens for incoming traffic
+var port = process.env.PORT || config.dev.port;
+console.log(process.env.PORT);
+// Define HTTP proxies to your custom API backend
+// https://github.com/chimurai/http-proxy-middleware
 
 const app = express()
+/****************************************************/
+const compiler = webpack(webpackConfig)
+//webpack 中间件
 
+// 正式环境时，下面两个模块不需要引入
+var devMiddleware = require('webpack-dev-middleware')(compiler, {
+  publicPath: webpackConfig.output.publicPath,
+  quiet: true
+})
+
+var hotMiddleware = require('webpack-hot-middleware')(compiler, {
+  log: () => {}
+})
+
+// force page reload when html-webpack-plugin template changes
+compiler.plugin('compilation', function (compilation) {
+  compilation.plugin('html-webpack-plugin-after-emit', function (data, cb) {
+    hotMiddleware.publish({ action: 'reload' })
+    cb()
+  })
+})
+
+// handle fallback for HTML5 history API
+// 引入history模块
 // 引入history模式让浏览器进行前端路由页面跳转
-app.use(history())
+app.use(require('connect-history-api-fallback')())
+
+// serve webpack bundle output
+app.use(devMiddleware)
+
+// enable hot-reload and state-preserving
+// compilation error display
+app.use(hotMiddleware)
+
+
+// serve pure static assets
+var staticPath = path.posix.join(config.dev.assetsPublicPath, config.dev.assetsSubDirectory)
+app.use(staticPath, express.static('./static'))
+
+/****************************************************/
+
 
 // uncomment after placing your favicon in /public
-app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')))
-app.use(logger('dev'))
+// app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')))
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
+app.use(logger('dev'))
 app.use(express.static(path.join(__dirname, 'public')))
 
-const compiler = webpack(config)
-//webpack 中间件
-app.use(webpackDevMiddleware(compiler, {
-  publicPath: config.output.publicPath,
-  stats: { colors: true }
-}))
-
-app.use(webpackHotMiddleware(compiler))
+// 后端api路由
+app.use('/api', router);
 
 app.use(express.static(path.join(__dirname, 'views')))
-app.get('/', function (req, res) {
+app.get('/api', function (req, res) {
   res.sendFile('./views/index.html')
+})
+
+app.get('/example/A', function (req, res) {
+  res.send('Hello from A!');
+})
+
+//nodejs 解除跨域限制
+app.all('*', function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With,Content-Type");
+  res.header("Access-Control-Allow-Methods","PUT,POST,GET,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Credentials","true");
+  res.header("X-Powered-By",' 3.2.1')
+  res.header("Content-Type", "application/json;charset=utf-8");
+  next();
 })
 
 // catch 404 and forward to error handler
@@ -54,10 +107,31 @@ app.use(function (err, req, res, next) {
   res.send(err.message)
 })
 
+var uri = 'http://localhost:' + port
+devMiddleware.waitUntilValid(function () {
+  console.log('> Listening at ' + uri + '\n')
+})
 // 设置监听端口
-const SERVER_PORT = 4000
-app.listen(SERVER_PORT, () => {
-  console.info(`服务已经启动，监听端口${SERVER_PORT}`)
+/*app.listen(port, (err) => {
+  if (err) {
+    console.log(err)
+    return
+  }
+  console.info(`服务已经启动，监听端口${port}`)
 })
 
-export default app
+module.exports = app*/
+
+module.exports = app.listen(port, function (err) {
+  if (err) {
+    console.log(err)
+    return
+  }
+  console.info(`服务已经启动，监听端口${port}`)
+
+  // when env is testing, don't need open it
+  /*if (process.env.NODE_ENV !== 'testing') {
+    opn(uri)
+  }*/
+})
+

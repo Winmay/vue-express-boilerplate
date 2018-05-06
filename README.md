@@ -1,6 +1,8 @@
 Vue + Express 前后端脚手架
 =========================================
 
+参考[Konata9的vue-express-dev-boilerplate](https://github.com/Konata9/vue-express-dev-boilerplate)项目
+
 在原版本基础之上，修改了webpack的相关配置文件。使得项目可以运行build命令，编译vue相关代码。
 前端部分增加了vue全家桶（vue-router，vuex）
 后端express部分增加有history模式，支持前端路由。需要传统后端路由方式的话，请注释掉`server/index.js`中`app.use(history())`
