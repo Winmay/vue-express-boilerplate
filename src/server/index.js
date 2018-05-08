@@ -14,9 +14,14 @@ var webpack = require('webpack')
 
 var webpackConfig = require('../../build/webpack.dev.conf')
 
+var proxyMiddleware = require('http-proxy-middleware')
+
+// https://github.com/chimurai/http-proxy-middleware
+var proxyTable = config.dev.proxyTable
+
 // default port where dev server listens for incoming traffic
 var port = process.env.PORT || config.dev.port;
-console.log(process.env.PORT);
+
 // Define HTTP proxies to your custom API backend
 // https://github.com/chimurai/http-proxy-middleware
 
@@ -74,9 +79,10 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.use('/api', router);
 
 app.use(express.static(path.join(__dirname, 'views')))
-app.get('/api', function (req, res) {
+app.get('/', function (req, res) {
   res.sendFile('./views/index.html')
 })
+console.log(__dirname)
 
 app.get('/example/A', function (req, res) {
   res.send('Hello from A!');
@@ -91,6 +97,21 @@ app.all('*', function(req, res, next) {
   res.header("X-Powered-By",' 3.2.1')
   res.header("Content-Type", "application/json;charset=utf-8");
   next();
+})
+
+//为 Express 设置代理
+app.set('trust proxy', function (ip) {
+  if (ip === '127.0.0.1') return true; // 受信的 IP 地址
+  else return false;
+})
+
+// proxy api requests
+Object.keys(proxyTable).forEach(function (context) {
+  var options = proxyTable[context]
+  if (typeof options === 'string') {
+    options = { target: options }
+  }
+  app.use(proxyMiddleware(context, options))
 })
 
 // catch 404 and forward to error handler

@@ -15,6 +15,7 @@ var jsonWrite = function(res, ret) {
         });
     } else {
         res.json(ret);
+        // res.writeHead(200, {"Content-Type": "text/plain"});
     }
 };
 
@@ -70,10 +71,10 @@ router.post(loginIn, function(req, res) {
 });
 
 router.get('/list', function(req, res) {
-    console.log(res)
 
-    sql.fetchAllSqlData( 'datasource' ).then(res => {
-        console.log(JSON.parse(JSON.stringify(res)))
+    sql.fetchAllSqlData( 'datasource' ).then(results => {
+        // console.log(JSON.parse(JSON.stringify(results)))
+        jsonWrite(res, results);
     })
 });
 
